@@ -27,7 +27,7 @@ There are 4 types of method references in Java:
 4. Store result
 You explicitly control every instruction.
 
-##Declarative Style of Programming (DSP)
+## Declarative Style of Programming (DSP)
 
 > Declarative Programming is a style of programming where we focus mainly on what needs to be done, rather than how it should be done.
 
@@ -36,5 +36,7 @@ You explicitly control every instruction.
 2. Transform data
 3. Get result
 The underlying system decides how to execute it.
+
+* Declarative programming in modern Java is achieved largely using Functional Programming concepts. 
 
 
