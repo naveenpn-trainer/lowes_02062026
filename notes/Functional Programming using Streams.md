@@ -37,6 +37,19 @@ You explicitly control every instruction.
 3. Get result
 The underlying system decides how to execute it.
 
-* Declarative programming in modern Java is achieved largely using Functional Programming concepts. 
+* Declarative programming in modern Java is achieved largely using Functional Programming concepts.
+
+
+# Streams
+
+> Stream is a sequence of elements supporting aggregate operations. 
+
+Break into:
+1. Source
+2. Intermediate
+3. Terminal
+This is the heart.
+
+<img src="../imgs/streams_01.png" />
 
 
