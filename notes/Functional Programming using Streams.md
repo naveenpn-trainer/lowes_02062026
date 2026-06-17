@@ -50,6 +50,6 @@ Break into:
 3. Terminal
 This is the heart.
 
-<img src="../imgs/streams_01.png" />
+<img src="./imgs/streams_01.png" />
 
 
