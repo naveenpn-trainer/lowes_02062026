@@ -13,6 +13,13 @@
         <module>project03</module>
         <module>project02</module>
         <module>apache-maven-learning</module>
+        <module>software-design-and-engineering</module>
+        <module>software-design-and-engineering/logging-and-monitoring</module>
+        <module>milestone03-mastering-spring-boot</module>
+        <module>milestone03-mastering-spring-boot/m05-data-persistence-with-spring-data-jpa</module>
+        <module>milestone03-mastering-spring-boot/m06-testing-spring-boot-applications</module>
+        <module>milestone03-mastering-spring-boot/m07-production-ready-features</module>
+        <module>milestone03-mastering-spring-boot/m08-security-with-spring-security</module>
     </modules>
 
     <properties>
