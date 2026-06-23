@@ -1,0 +1,28 @@
+<configuration>
+
+    <appender name="CONSOLE"
+              class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d %-5level %logger - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="PAYMENT_FILE"
+              class="ch.qos.logback.core.FileAppender">
+        <file>logs/payment.log</file>
+        <encoder>
+            <pattern>%d %-5level %logger - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <logger name="demo.TransactionService"
+            level="DEBUG"
+            additivity="false">
+        <appender-ref ref="PAYMENT_FILE"/>
+    </logger>
+
+    <root level="DEBUG">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+
+</configuration>
