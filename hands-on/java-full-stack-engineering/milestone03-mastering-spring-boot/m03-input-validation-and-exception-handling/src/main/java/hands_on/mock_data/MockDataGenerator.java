@@ -1,6 +1,6 @@
-package hands_on.user_api.mock_data;
+package hands_on.mock_data;
 
-import hands_on.user_api.dto.UserResponse;
+import hands_on.dto.UserResponse;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;

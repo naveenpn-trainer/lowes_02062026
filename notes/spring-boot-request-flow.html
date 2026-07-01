@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spring Boot — Request Flow</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f7f6f3;
+    --surface: #ffffff;
+    --border: #e4e2db;
+    --border-strong: #c8c5bc;
+    --text: #1a1916;
+    --text-muted: #6b6860;
+    --text-hint: #9c9a92;
+    --blue-bg: #e8f0fb;
+    --blue-border: #4a7fd4;
+    --blue-text: #1a3f7a;
+    --teal-bg: #e0f4ee;
+    --teal-border: #2aaa80;
+    --teal-text: #0d5c40;
+    --amber-bg: #fef3dc;
+    --amber-border: #d4900a;
+    --amber-text: #6b4200;
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'Inter', system-ui, sans-serif;
+    --radius: 10px;
+    --radius-sm: 6px;
+  }
+
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 40px 24px;
+  }
+
+  .page {
+    max-width: 860px;
+    margin: 0 auto;
+  }
+
+  header {
+    margin-bottom: 40px;
+  }
+
+  .eyebrow {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-hint);
+    margin-bottom: 8px;
+  }
+
+  h1 {
+    font-size: 26px;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1.25;
+    margin-bottom: 8px;
+  }
+
+  .header-sub {
+    font-size: 14px;
+    color: var(--text-muted);
+    line-height: 1.6;
+  }
+
+  /* Phase legend */
+  .legend {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* Timeline track */
+  .timeline {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    gap: 0;
+    margin-bottom: 24px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
+  .timeline-track {
+    position: absolute;
+    top: 14px;
+    left: 14px;
+    right: 14px;
+    height: 2px;
+    background: var(--border);
+    z-index: 0;
+  }
+
+  .timeline-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--amber-border), var(--blue-border), var(--teal-border));
+    transition: width 0.35s ease;
+  }
+
+  .step-node {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+    min-width: 56px;
+    cursor: pointer;
+  }
+
+  .step-bubble {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid var(--border-strong);
+    background: var(--surface);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    transition: all 0.2s;
+    font-family: var(--mono);
+  }
+
+  .step-node.done .step-bubble {
+    background: var(--teal-bg);
+    border-color: var(--teal-border);
+    color: var(--teal-text);
+  }
+
+  .step-node.active .step-bubble {
+    background: var(--blue-bg);
+    border-color: var(--blue-border);
+    color: var(--blue-text);
+    box-shadow: 0 0 0 4px rgba(74,127,212,0.15);
+  }
+
+  .step-node.startup.active .step-bubble {
+    background: var(--amber-bg);
+    border-color: var(--amber-border);
+    color: var(--amber-text);
+    box-shadow: 0 0 0 4px rgba(212,144,10,0.15);
+  }
+
+  .step-node.response.active .step-bubble {
+    background: var(--teal-bg);
+    border-color: var(--teal-border);
+    color: var(--teal-text);
+    box-shadow: 0 0 0 4px rgba(42,170,128,0.15);
+  }
+
+  .step-label {
+    font-size: 9px;
+    color: var(--text-hint);
+    margin-top: 5px;
+    text-align: center;
+    line-height: 1.3;
+    max-width: 52px;
+  }
+
+  .step-node.active .step-label {
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+
+  /* Main card */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  .card-header {
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+  }
+
+  .step-number {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 500;
+    padding: 3px 9px;
+    border-radius: 20px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .phase-startup .step-number { background: var(--amber-bg); color: var(--amber-text); border: 1px solid var(--amber-border); }
+  .phase-request .step-number { background: var(--blue-bg); color: var(--blue-text); border: 1px solid var(--blue-border); }
+  .phase-response .step-number { background: var(--teal-bg); color: var(--teal-text); border: 1px solid var(--teal-border); }
+
+  .card-title-block { flex: 1; }
+
+  .card-eyebrow {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .phase-startup .card-eyebrow { color: var(--amber-text); }
+  .phase-request .card-eyebrow { color: var(--blue-text); }
+  .phase-response .card-eyebrow { color: var(--teal-text); }
+
+  .card-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1.3;
+    margin-bottom: 3px;
+  }
+
+  .card-sub {
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  .card-body { padding: 20px 24px; }
+
+  /* Thread badge */
+  .thread-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: var(--radius-sm);
+    margin-bottom: 14px;
+    border: 1px solid;
+  }
+
+  .thread-badge.main { background: var(--amber-bg); color: var(--amber-text); border-color: var(--amber-border); }
+  .thread-badge.nio  { background: var(--blue-bg);  color: var(--blue-text);  border-color: var(--blue-border); }
+
+  .thread-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  .main .thread-dot { background: var(--amber-border); }
+  .nio  .thread-dot { background: var(--blue-border); }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.4; }
+  }
+
+  /* Log block */
+  .log-block {
+    background: #1e1c18;
+    border-radius: var(--radius-sm);
+    padding: 14px 16px;
+    margin-bottom: 16px;
+    overflow-x: auto;
+  }
+
+  .log-block pre {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    color: #c8c5bc;
+  }
+
+  .log-block .hi-blue   { color: #79b8f3; font-weight: 500; }
+  .log-block .hi-green  { color: #7ee787; font-weight: 500; }
+  .log-block .hi-amber  { color: #f0a84e; font-weight: 500; }
+  .log-block .hi-muted  { color: #6b6860; }
+
+  /* Insight */
+  .insight {
+    display: flex;
+    gap: 12px;
+    padding: 14px 16px;
+    background: var(--bg);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+  }
+
+  .insight-icon {
+    font-size: 15px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .insight p {
+    font-size: 13.5px;
+    color: var(--text-muted);
+    line-height: 1.65;
+  }
+
+  /* Key concept pill */
+  .concept {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: #e8f0fb;
+    color: #1a3f7a;
+    font-family: var(--mono);
+    white-space: nowrap;
+  }
+
+  /* Nav */
+  .nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 24px;
+    border-top: 1px solid var(--border);
+    background: var(--bg);
+  }
+
+  .nav-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 18px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-strong);
+    background: var(--surface);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .nav-btn:hover:not(:disabled) { background: var(--bg); border-color: var(--blue-border); color: var(--blue-text); }
+  .nav-btn:disabled { opacity: 0.3; cursor: default; }
+
+  .nav-btn.primary {
+    background: var(--blue-text);
+    border-color: var(--blue-text);
+    color: #fff;
+  }
+
+  .nav-btn.primary:hover:not(:disabled) { background: #132e5c; border-color: #132e5c; color: #fff; }
+
+  .nav-counter {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-hint);
+  }
+
+  /* Flow minimap */
+  .minimap {
+    margin-top: 28px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+  }
+
+  .minimap-title {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-hint);
+    margin-bottom: 14px;
+  }
+
+  .minimap-flow {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px;
+    font-size: 11px;
+  }
+
+  .mm-node {
+    padding: 4px 10px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    font-weight: 500;
+    white-space: nowrap;
+    transition: all 0.2s;
+    cursor: pointer;
+  }
+
+  .mm-node.active-startup { background: var(--amber-bg); border-color: var(--amber-border); color: var(--amber-text); }
+  .mm-node.active-request { background: var(--blue-bg);  border-color: var(--blue-border);  color: var(--blue-text); }
+  .mm-node.active-response{ background: var(--teal-bg);  border-color: var(--teal-border);  color: var(--teal-text); }
+
+  .mm-arrow {
+    color: var(--text-hint);
+    font-size: 13px;
+  }
+
+  footer {
+    margin-top: 20px;
+    text-align: center;
+    font-size: 11px;
+    color: var(--text-hint);
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header>
+    <p class="eyebrow">Spring Boot · Milestone 03</p>
+    <h1>Request Flow — step by step</h1>
+    <p class="header-sub">Every log line from your console mapped to the layer that produced it. Step through the full lifecycle of <code style="font-family:var(--mono);font-size:13px;background:#eee;padding:1px 5px;border-radius:3px">GET /users/101</code>.</p>
+  </header>
+
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:var(--amber-border)"></div> Phase 1 — startup (main thread)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--blue-border)"></div> Phase 2 — request flow (nio thread)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--teal-border)"></div> Phase 3 — response path (nio thread)</div>
+  </div>
+
+  <div class="timeline">
+    <div class="timeline-track"><div class="timeline-fill" id="track-fill"></div></div>
+    <div id="timeline-nodes"></div>
+  </div>
+
+  <div class="card" id="main-card">
+    <div class="card-header" id="card-header">
+      <span class="step-number" id="step-num"></span>
+      <div class="card-title-block">
+        <p class="card-eyebrow" id="card-eyebrow"></p>
+        <h2 class="card-title" id="card-title"></h2>
+        <p class="card-sub" id="card-sub"></p>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="thread-badge" id="thread-badge"><span class="thread-dot"></span><span id="thread-label"></span></div>
+      <div class="log-block"><pre id="log-content"></pre></div>
+      <div class="insight">
+        <span class="insight-icon">💡</span>
+        <p id="insight-text"></p>
+      </div>
+    </div>
+    <div class="nav">
+      <button class="nav-btn" id="btn-prev" onclick="nav(-1)">← Prev</button>
+      <span class="nav-counter" id="nav-counter"></span>
+      <button class="nav-btn primary" id="btn-next" onclick="nav(1)">Next →</button>
+    </div>
+  </div>
+
+  <div class="minimap">
+    <p class="minimap-title">Full flow — click any stage</p>
+    <div class="minimap-flow" id="minimap"></div>
+  </div>
+
+  <footer>Spring Boot 4.1.0 · Java 21 · m00-application-flow-in-spring-boot</footer>
+
+</div>
+
+<script>
+const steps = [
+  {
+    phase: 'startup',
+    eyebrow: 'Phase 1 — startup · [main] thread',
+    title: 'HandlerMapping scans controller mappings',
+    sub: 'Registration job — stores all @GetMapping / @PostMapping in a lookup table',
+    thread: 'main',
+    threadLabel: '[main] thread — boot time',
+    log: `<span class="hi-amber">TRACE</span> s.w.s.m.m.a.RequestMappingHandlerMapping :
+  <span class="hi-blue">h.c.UserController:</span>
+  {<span class="hi-green">GET [/users/{id}]</span>}: getUser(Integer)`,
+    insight: `This log fires at <strong>startup</strong>, not per-request. HandlerMapping is doing its <em>registration</em> job — scanning @RestController classes and storing every @GetMapping in an in-memory table. This is why it appears before DispatcherServlet in the console even though it runs <em>after</em> DispatcherServlet in the runtime flow. The diagram shows runtime order; the logs show boot order.`,
+    mapLabel: 'HandlerMapping\n(register)'
+  },
+  {
+    phase: 'startup',
+    eyebrow: 'Phase 1 — startup · [main] thread',
+    title: 'Tomcat starts on port 8080',
+    sub: 'Embedded server is live — app is now accepting connections',
+    thread: 'main',
+    threadLabel: '[main] thread — boot time',
+    log: `<span class="hi-amber">INFO</span>  o.s.boot.tomcat.TomcatWebServer :
+  Tomcat initialized with port <span class="hi-green">8080</span> (http)
+
+<span class="hi-amber">INFO</span>  o.s.boot.tomcat.TomcatWebServer :
+  Tomcat started on port <span class="hi-green">8080</span> (http) with context path '/'
+
+<span class="hi-amber">INFO</span>  hands_on.RequestFlowDemoApplication :
+  <span class="hi-green">Started RequestFlowDemoApplication in 5.148 seconds</span>`,
+    insight: `Spring Boot auto-configures and starts an <strong>embedded Tomcat</strong> — no WAR, no external server required. The app is now listening. Nothing further happens until a client makes a request. Notice the thread is still <code>[main]</code> — all of Phase 1 runs on the boot thread.`,
+    mapLabel: 'Tomcat\nstart'
+  },
+  {
+    phase: 'request',
+    eyebrow: 'Phase 2 — first request · [nio-8080-exec-2] thread',
+    title: 'DispatcherServlet initializes (lazy)',
+    sub: 'Front Controller boots on the very first HTTP request — not at startup',
+    thread: 'nio',
+    threadLabel: '[nio-8080-exec-2] — Tomcat worker thread',
+    log: `<span class="hi-blue">INFO</span>  o.a.c.c.C.[Tomcat].[localhost].[/] :
+  Initializing Spring <span class="hi-green">DispatcherServlet</span> 'dispatcherServlet'
+
+<span class="hi-blue">INFO</span>  o.s.web.servlet.DispatcherServlet :
+  Initializing Servlet 'dispatcherServlet'
+  Completed initialization in <span class="hi-green">1 ms</span>`,
+    insight: `DispatcherServlet is <strong>lazy by default</strong> in Spring Boot — it only initializes when the first real request arrives. The thread name changed from <code>[main]</code> to <code>[nio-8080-exec-2]</code>: we're now on a Tomcat NIO worker thread. This is the boundary between Phase 1 and Phase 2.`,
+    mapLabel: 'Dispatcher\nServlet init'
+  },
+  {
+    phase: 'request',
+    eyebrow: 'Phase 2 — request flow · Servlet layer',
+    title: 'DemoFilter runs — BEFORE the chain',
+    sub: 'Outermost layer — wraps DispatcherServlet and everything inside it',
+    thread: 'nio',
+    threadLabel: '[nio-8080-exec-2] — Tomcat worker thread',
+    log: `<span class="hi-green">&gt;&gt;&gt; Filter BEFORE : /users/101</span>
+
+<span class="hi-muted">(then chain.doFilter() is called — all of Spring MVC</span>
+<span class="hi-muted"> runs inside this call, and execution will return here</span>
+<span class="hi-muted"> after the response is written)</span>`,
+    insight: `<strong>Filters are a Servlet API concept</strong> — they run completely outside Spring MVC, before DispatcherServlet even sees the request. <code>chain.doFilter()</code> is called here, and every subsequent step in this demo (DispatcherServlet, HandlerMapping, Interceptor, Controller, Service) happens <em>inside</em> that one call. Filter AFTER will be the very last line printed.`,
+    mapLabel: 'Filter\nBEFORE'
+  },
+  {
+    phase: 'request',
+    eyebrow: 'Phase 2 — request flow · Spring MVC layer',
+    title: 'DispatcherServlet receives the request',
+    sub: 'Front Controller — asks HandlerMapping who handles this URL',
+    thread: 'nio',
+    threadLabel: '[nio-8080-exec-2] — Tomcat worker thread',
+    log: `<span class="hi-blue">TRACE</span> o.s.web.servlet.DispatcherServlet :
+  GET <span class="hi-green">"/users/101"</span>, parameters={},
+  headers={<span class="hi-muted">masked</span>}
+  in DispatcherServlet 'dispatcherServlet'`,
+    insight: `DispatcherServlet is the <strong>Front Controller</strong> — every request enters here. It now consults HandlerMapping at runtime: <em>"who handles GET /users/101?"</em> This is the second job of HandlerMapping: looking up the registration table built at startup.`,
+    mapLabel: 'Dispatcher\nServlet'
+  },
+  {
+    phase: 'request',
+    eyebrow: 'Phase 2 — request flow · Spring MVC layer',
+    title: 'HandlerMapping resolves the controller (runtime lookup)',
+    sub: 'Consults the registration table — finds UserController#getUser',
+    thread: 'nio',
+    threadLabel: '[nio-8080-exec-2] — Tomcat worker thread',
+    log: `<span class="hi-blue">TRACE</span> s.w.s.m.m.a.RequestMappingHandlerMapping :
+  Mapped to <span class="hi-green">hands_on.controller.UserController</span>
+            <span class="hi-green">#getUser(Integer)</span>`,
+    insight: `HandlerMapping's <strong>second job</strong>: per-request URL lookup. It matched <code>GET /users/101</code> against the table built at startup (Step 1) and found <code>UserController#getUser(Integer)</code>. The same class does two completely different things at two completely different times — that's why it shows up twice in the logs.`,
+    mapLabel: 'Handler\nMapping'
+  },
+  {
+    phase: 'request',
+    eyebrow: 'Phase 2 — request flow · Spring MVC layer',
+    title: 'Interceptor preHandle fires',
+    sub: 'Runs after HandlerMapping resolves, before controller method executes',
+    thread: 'nio',
+    threadLabel: '[nio-8080-exec-2] — Tomcat worker thread',
+    log: `<span class="hi-green">&gt;&gt;&gt; Interceptor preHandle</span>
+
+<span class="hi-muted">(returns true → proceed to controller)</span>`,
+    insight: `Unlike filters, <strong>interceptors are Spring MVC aware</strong> — they know which controller method will be called. <code>preHandle</code> returning <code>true</code> means "proceed". Returning <code>false</code> would halt the request here and the controller would never be called. Typical uses: authentication checks, logging, rate limiting.`,
+    mapLabel: 'Interceptor\npreHandle'
+  },
+  {
+    phase: 'request',
+    eyebrow: 'Phase 2 — request flow · Spring MVC layer',
+    title: 'Argument resolution + Controller + Service',
+    sub: '@PathVariable resolved to 101, business logic executes',
+    thread: 'nio',
+    threadLabel: '[nio-8080-exec-2] — Tomcat worker thread',
+    log: `<span class="hi-blue">TRACE</span> o.s.web.method.HandlerMethod :
+  Arguments: [<span class="hi-green">101</span>]
+
+<span class="hi-green">&gt;&gt;&gt; Inside Controller</span>
+
+<span class="hi-green">&gt;&gt;&gt; Inside Service</span>
+
+<span class="hi-muted">(Hibernate hits H2 silently here —</span>
+<span class="hi-muted"> no SQL shown, spring.jpa.show-sql not set)</span>`,
+    insight: `<strong>ArgumentResolver</strong> extracted <code>id = 101</code> from the URL path before handing it to the controller. Controller delegates to Service, Service calls Repository. Hibernate issues a <code>SELECT</code> against H2 in-memory between "Inside Service" and the next log line — invisible here because <code>spring.jpa.show-sql=true</code> is not set.`,
+    mapLabel: 'Controller\n→ Service'
+  },
+  {
+    phase: 'request',
+    eyebrow: 'Phase 2 — request flow · Spring MVC layer',
+    title: 'HttpMessageConverter serializes the response',
+    sub: 'User object → {"id":101,"name":"Naveen"} via Jackson',
+    thread: 'nio',
+    threadLabel: '[nio-8080-exec-2] — Tomcat worker thread',
+    log: `<span class="hi-blue">DEBUG</span> m.m.a.RequestResponseBodyMethodProcessor :
+  Using <span class="hi-green">'application/json'</span>,
+  given [*/*] and supported [application/json]
+
+<span class="hi-blue">TRACE</span> m.m.a.RequestResponseBodyMethodProcessor :
+  Writing [hands_on.entity.<span class="hi-green">User@7a8795f5</span>]`,
+    insight: `<strong>HttpMessageConverter</strong> (backed by Jackson) serializes the <code>User</code> entity to JSON. The client sent <code>Accept: */*</code>, so Spring chose <code>application/json</code> as the best match. The response body is now written. This is step 12 in your diagram.`,
+    mapLabel: 'Message\nConverter'
+  },
+  {
+    phase: 'response',
+    eyebrow: 'Phase 3 — response path · Spring MVC layer',
+    title: 'Interceptor postHandle + afterCompletion',
+    sub: 'Response written → postHandle → afterCompletion → 200 OK',
+    thread: 'nio',
+    threadLabel: '[nio-8080-exec-2] — Tomcat worker thread',
+    log: `<span class="hi-green">&lt;&lt;&lt; Interceptor postHandle</span>
+
+<span class="hi-blue">TRACE</span> o.s.web.servlet.DispatcherServlet :
+  No view rendering, null ModelAndView returned.
+
+<span class="hi-green">&lt;&lt;&lt; Interceptor afterCompletion</span>
+
+<span class="hi-blue">DEBUG</span> o.s.web.servlet.DispatcherServlet :
+  Completed <span class="hi-green">200 OK</span>, headers={masked}`,
+    insight: `<strong>postHandle</strong> fires after the controller returns but before the response is committed. <strong>afterCompletion</strong> fires after the response is fully sent — even on exceptions. The <code>null ModelAndView</code> confirms this is a REST response (@ResponseBody), not a template-rendered view. Both methods always run in the reverse order of preHandle.`,
+    mapLabel: 'Interceptor\npost + after'
+  },
+  {
+    phase: 'response',
+    eyebrow: 'Phase 3 — response path · Servlet layer',
+    title: 'DemoFilter resumes — AFTER the chain',
+    sub: 'chain.doFilter() returns — the outermost shell completes',
+    thread: 'nio',
+    threadLabel: '[nio-8080-exec-2] — Tomcat worker thread',
+    log: `<span class="hi-green">&lt;&lt;&lt; Filter AFTER</span>
+
+<span class="hi-muted">(Filter BEFORE was first in, Filter AFTER is last out.)</span>`,
+    insight: `<code>chain.doFilter()</code> finally returned. <strong>Everything</strong> — DispatcherServlet, HandlerMapping, Interceptors, Controller, Service, Repository, Jackson serialization — happened inside that one call. Filter is the outermost shell of the entire web stack. This is the defining structural fact of the Servlet API.`,
+    mapLabel: 'Filter\nAFTER'
+  }
+];
+
+const miniNodes = [
+  { label: 'HandlerMapping\nregister', step: 0, phase: 'startup' },
+  { label: 'Tomcat start', step: 1, phase: 'startup' },
+  { label: 'DispatcherServlet\ninit', step: 2, phase: 'request' },
+  { label: 'Filter BEFORE', step: 3, phase: 'request' },
+  { label: 'DispatcherServlet', step: 4, phase: 'request' },
+  { label: 'HandlerMapping\nlookup', step: 5, phase: 'request' },
+  { label: 'Interceptor\npreHandle', step: 6, phase: 'request' },
+  { label: 'Controller\n→ Service', step: 7, phase: 'request' },
+  { label: 'MessageConverter', step: 8, phase: 'request' },
+  { label: 'Interceptor\npost + after', step: 9, phase: 'response' },
+  { label: 'Filter AFTER', step: 10, phase: 'response' }
+];
+
+let cur = 0;
+
+function phaseClass(s) {
+  return 'phase-' + steps[s].phase;
+}
+
+function render() {
+  const s = steps[cur];
+  const total = steps.length;
+
+  document.getElementById('card-header').className = 'card-header ' + phaseClass(cur);
+  document.getElementById('step-num').textContent = `Step ${cur + 1} / ${total}`;
+  document.getElementById('card-eyebrow').textContent = s.eyebrow;
+  document.getElementById('card-title').textContent = s.title;
+  document.getElementById('card-sub').textContent = s.sub;
+
+  const tb = document.getElementById('thread-badge');
+  tb.className = 'thread-badge ' + s.thread;
+  document.getElementById('thread-label').textContent = s.threadLabel;
+
+  document.getElementById('log-content').innerHTML = s.log;
+  document.getElementById('insight-text').innerHTML = s.insight;
+  document.getElementById('nav-counter').textContent = `${cur + 1} of ${total}`;
+  document.getElementById('btn-prev').disabled = cur === 0;
+  document.getElementById('btn-next').disabled = cur === total - 1;
+  document.getElementById('btn-next').textContent = cur === total - 1 ? '✓ Done' : 'Next →';
+
+  const fillPct = total > 1 ? (cur / (total - 1)) * 100 : 0;
+  document.getElementById('track-fill').style.width = fillPct + '%';
+
+  const nodesEl = document.getElementById('timeline-nodes');
+  nodesEl.style.cssText = 'display:flex;align-items:flex-start;width:100%;';
+  nodesEl.innerHTML = steps.map((st, i) => {
+    const cls = i === cur ? `step-node active ${st.phase}` : i < cur ? 'step-node done' : 'step-node';
+    return `<div class="${cls}" style="flex:1;min-width:36px" onclick="goTo(${i})">
+      <div class="step-bubble">${i + 1}</div>
+      <div class="step-label">${st.title.split(' ').slice(0, 2).join(' ')}</div>
+    </div>`;
+  }).join('');
+
+  const mm = document.getElementById('minimap');
+  mm.innerHTML = miniNodes.map((n, i) => {
+    const isActive = n.step === cur;
+    const cls = isActive ? `mm-node active-${n.phase}` : 'mm-node';
+    const arrow = i < miniNodes.length - 1 ? '<span class="mm-arrow">›</span>' : '';
+    return `<span class="${cls}" onclick="goTo(${n.step})">${n.label.replace('\n', ' ')}</span>${arrow}`;
+  }).join('');
+}
+
+function nav(d) {
+  cur = Math.max(0, Math.min(steps.length - 1, cur + d));
+  render();
+}
+
+function goTo(i) {
+  cur = i;
+  render();
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight') nav(1);
+  if (e.key === 'ArrowLeft')  nav(-1);
+});
+
+render();
+</script>
+</body>
+</html>

@@ -1,13 +1,15 @@
-package hands_on.user_api.service;
+package hands_on.service;
 
-import hands_on.user_api.dto.UserRequest;
-import hands_on.user_api.dto.UserResponse;
-import hands_on.user_api.mock_data.MockDataGenerator;
+
+import hands_on.dto.UserRequest;
+import hands_on.dto.UserResponse;
+import hands_on.mock_data.MockDataGenerator;
+import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-
+@Component
 public class UserServiceOptionalImp implements UserServiceOptional {
 
     private List<UserResponse> usersList = MockDataGenerator.getUsersMockData();
@@ -19,19 +21,17 @@ public class UserServiceOptionalImp implements UserServiceOptional {
 
     @Override
     public Optional<UserResponse> findById(long id) {
-        return Optional.empty();
+        return usersList.stream()
+                .filter(user -> user.getId() == id)
+                .findFirst();
     }
 
+    @Override
     public Optional<List<UserResponse>> findAll() {
         return Optional.of(usersList);
     }
 
 
-    public Optional<UserResponse> findById(Long id) {
-        return usersList.stream()
-                .filter(user -> user.getId() == id)
-                .findFirst();
-    }
 
     public UserResponse create(UserRequest request) {
         UserResponse user = new UserResponse();
